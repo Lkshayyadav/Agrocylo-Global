@@ -35,6 +35,10 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { DashboardReadinessGate } from "@/components/DashboardReadinessGate";
 import { useMyProducts } from "@/hooks/queries/useProducts";
 import { useSellerOrders } from "@/hooks/queries/useOrders";
+import {
+  aggregateEarningsHistory,
+  aggregateOrdersBreakdown,
+} from "@/lib/orderMetrics";
 
 const EarningsLineChart = dynamic(
   () => import("@/components/shared/charts").then((m) => ({ default: m.EarningsLineChart })),
@@ -196,23 +200,8 @@ function DashboardContent() {
     },
   ];
 
-  const earningsData = [
-    { month: "Jan", gross: 0, net: 0 },
-    { month: "Feb", gross: 0, net: 0 },
-    { month: "Mar", gross: 0, net: 0 },
-    { month: "Apr", gross: 0, net: 0 },
-    { month: "May", gross: 0, net: 0 },
-    { month: "Jun", gross: totalRevenue, net: totalRevenue * 0.97 },
-  ];
-
-  const ordersChart = [
-    {
-      month: "Jun",
-      completed: completed.length,
-      pending: pending.length,
-      refunded: orders.filter((o) => o.status === "Refunded").length,
-    },
-  ];
+  const earningsData = aggregateEarningsHistory(orders);
+  const ordersChart = aggregateOrdersBreakdown(orders);
 
   const recentOrders = orders.slice(0, 3);
 
@@ -248,19 +237,45 @@ function DashboardContent() {
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-2">
         <div className="min-w-0 overflow-hidden rounded-2xl border bg-card p-4 sm:p-6">
-          <h2 className="mb-4 font-semibold">Earnings Overview</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Earnings Overview</h2>
+            {earningsData.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {earningsData[0].month} – {earningsData[earningsData.length - 1].month}
+              </span>
+            )}
+          </div>
           {isLoading ? (
             <Skeleton className="h-80 w-full" />
-          ) : (
+          ) : earningsData.length > 0 ? (
             <EarningsLineChart data={earningsData} />
+          ) : (
+            <div className="flex h-80 flex-col items-center justify-center p-6 text-center text-muted-foreground">
+              <AlertCircle className="mb-2 h-8 w-8 opacity-40" />
+              <p className="text-sm font-medium">No completed sales recorded yet</p>
+              <p className="text-xs text-muted-foreground">Historical earnings will appear here as completed orders are fulfilled.</p>
+            </div>
           )}
         </div>
         <div className="min-w-0 overflow-hidden rounded-2xl border bg-card p-4 sm:p-6">
-          <h2 className="mb-4 font-semibold">Orders Breakdown</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-semibold">Orders Breakdown</h2>
+            {ordersChart.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {ordersChart[0].month} – {ordersChart[ordersChart.length - 1].month}
+              </span>
+            )}
+          </div>
           {isLoading ? (
             <Skeleton className="h-80 w-full" />
-          ) : (
+          ) : ordersChart.length > 0 ? (
             <OrdersBarChart data={ordersChart} />
+          ) : (
+            <div className="flex h-80 flex-col items-center justify-center p-6 text-center text-muted-foreground">
+              <AlertCircle className="mb-2 h-8 w-8 opacity-40" />
+              <p className="text-sm font-medium">No order activity yet</p>
+              <p className="text-xs text-muted-foreground">Monthly status breakdown will populate once orders are placed.</p>
+            </div>
           )}
         </div>
       </div>
